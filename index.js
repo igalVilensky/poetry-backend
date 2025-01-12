@@ -10,48 +10,49 @@ app.use(cors());
 app.use(bodyParser.json());
 
 // In-memory data storage
-let likes = {
-  count: 42,
-  isLiked: false,
-};
-
-let comments = [
-  {
-    id: 1,
-    author: "Анна Петрова",
-    avatar: "/api/placeholder/40/40",
-    content:
-      "Прекрасное стихотворение! Особенно понравились метафоры в третьей строфе.",
-    date: new Date(Date.now() - 86400000).toISOString(),
-    likes: 5,
-    isLiked: false,
-  },
-];
+const poemData = {};
 
 // Routes
-// Get likes
-app.get("/api/likes", (req, res) => {
-  res.json(likes);
+// Get likes for a specific poem
+app.get("/api/likes/:slug", (req, res) => {
+  const { slug } = req.params;
+  if (!poemData[slug]) {
+    poemData[slug] = { likes: { count: 0, isLiked: false }, comments: [] };
+  }
+  res.json(poemData[slug].likes);
 });
 
-// Toggle like
-app.post("/api/likes/toggle", (req, res) => {
-  likes.isLiked = !likes.isLiked;
-  likes.count += likes.isLiked ? 1 : -1;
-  res.json(likes);
+// Toggle like for a specific poem
+app.post("/api/likes/:slug/toggle", (req, res) => {
+  const { slug } = req.params;
+  if (!poemData[slug]) {
+    poemData[slug] = { likes: { count: 0, isLiked: false }, comments: [] };
+  }
+  poemData[slug].likes.isLiked = !poemData[slug].likes.isLiked;
+  poemData[slug].likes.count += poemData[slug].likes.isLiked ? 1 : -1;
+  res.json(poemData[slug].likes);
 });
 
-// Get comments
-app.get("/api/comments", (req, res) => {
-  res.json(comments);
+// Get comments for a specific poem
+app.get("/api/comments/:slug", (req, res) => {
+  const { slug } = req.params;
+  if (!poemData[slug]) {
+    poemData[slug] = { likes: { count: 0, isLiked: false }, comments: [] };
+  }
+  res.json(poemData[slug].comments);
 });
 
-// Add a new comment
-app.post("/api/comments", (req, res) => {
+// Add a new comment for a specific poem
+app.post("/api/comments/:slug", (req, res) => {
+  const { slug } = req.params;
   const { author, avatar, content } = req.body;
 
   if (!content) {
     return res.status(400).json({ error: "Comment content is required" });
+  }
+
+  if (!poemData[slug]) {
+    poemData[slug] = { likes: { count: 0, isLiked: false }, comments: [] };
   }
 
   const newComment = {
@@ -64,15 +65,18 @@ app.post("/api/comments", (req, res) => {
     isLiked: false,
   };
 
-  comments.unshift(newComment);
+  poemData[slug].comments.unshift(newComment);
   res.status(201).json(newComment);
 });
 
-// Like a comment
-app.post("/api/comments/:id/like", (req, res) => {
-  const commentId = parseInt(req.params.id);
-  const comment = comments.find((c) => c.id === commentId);
+// Like a comment for a specific poem
+app.post("/api/comments/:slug/:id/like", (req, res) => {
+  const { slug, id } = req.params;
+  if (!poemData[slug]) {
+    return res.status(404).json({ error: "Poem not found" });
+  }
 
+  const comment = poemData[slug].comments.find((c) => c.id === parseInt(id));
   if (!comment) {
     return res.status(404).json({ error: "Comment not found" });
   }
